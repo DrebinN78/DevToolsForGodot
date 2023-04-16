@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://bxxcpmkyyro8v"]
+
+[ext_resource type="Script" path="res://Source/Nodes/DeveloppmentConsole.cs" id="1_mrx7e"]
+
+[node name="devconsole" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_mrx7e")
