@@ -10,21 +10,36 @@ namespace DevToolsForGodot
     [Tool]
     public partial class DevTools : EditorPlugin
     {
-        const string consoleAction = "ToggleDevConsole";
+
+        const string devtoolScenePath = "res://addons/devtoolsforgodot/DevTools.tscn";
+        const string devtoolWindowScenePath = "res://addons/devtoolsforgodot/DevTools.tscn";
+        Control devtoolSettingsWindow;
         public override void _EnterTree()
         {
-            AddAutoloadSingleton("DevTools", "res://addons/devtoolsforgodot/DevTools.tscn");
-            InputMap.AddAction(consoleAction);
-            InputEventKey ev = new();
-            ev.Keycode = Key.Quoteleft;
-            InputMap.ActionAddEvent(consoleAction, ev);
+            AddDevToolSceneToAutoLoad();
+            AddDevToolsSettingsWindow();
         }
 
         public override void _ExitTree()
         {
-            RemoveAutoloadSingleton("DevTools");
-            InputMap.EraseAction(consoleAction);
+            RemoveDevToolSceneFromAutoLoad();
+            RemoveDevToolsSettingsWindow();
         }
+
+        void AddDevToolSceneToAutoLoad() => AddAutoloadSingleton("DevTools", devtoolScenePath);
+        void RemoveDevToolSceneFromAutoLoad() => RemoveAutoloadSingleton("DevTools");
+        void AddDevToolsSettingsWindow()
+        {
+            devtoolSettingsWindow = (Control)GD.Load<PackedScene>(devtoolWindowScenePath).Instantiate();
+            AddControlToDock(DockSlot.LeftUl, devtoolSettingsWindow);
+        }
+        void RemoveDevToolsSettingsWindow()
+        {
+            RemoveControlFromDocks(devtoolSettingsWindow);
+            devtoolSettingsWindow.Free();
+        }
+
+
     }
 }
 #endif
