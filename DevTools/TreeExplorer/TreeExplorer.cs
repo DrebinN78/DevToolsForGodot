@@ -1,49 +1,16 @@
+#if TOOLS
 using Godot;
 using System;
 using System.Reflection;
 using System.Collections.Generic;
 using ImGuiNET;
-[AttributeUsage(AttributeTargets.Method)]
-public class ConsoleCommand : Attribute
-{
-    public string ttip;
-    public string pptip;
-    public ConsoleCommand()
-    {
-
-    }
-    public ConsoleCommand(string tooltip)
-    {
-        ttip = tooltip;
-    }
-    public ConsoleCommand(string tooltip, string parampacktip)
-    {
-        ttip = tooltip;
-        pptip = parampacktip;
-    }
-}
-[AttributeUsage(AttributeTargets.Property)]
-public class ConsoleValue : Attribute
-{
-    public string ttip;
-    public string vttip;
-    public ConsoleValue()
-    {
-    }
-    public ConsoleValue(string tooltip)
-    {
-        ttip = tooltip;
-    }
-    public ConsoleValue(string tooltip, string valueTooltip)
-    {
-        ttip = tooltip;
-        vttip = valueTooltip;
-    }
-}
 namespace DevToolsForGodot
 {
-    public partial class Console : Node
+    public partial class TreeExplorer : DevTool, IDevToolInfo
     {
+        public string toolname { get => "Tree Explorer"; }
+        public string tooltip { get => "Examine, Spawn or Delete, and modify exposed variables in all loaded scenes"; }
+        public string category { get => DevTools.sceneToolCat; }
         public enum CommandHistoryTheme
         {
             //Used for common text
@@ -61,7 +28,7 @@ namespace DevToolsForGodot
             public string tooltip;
             public Action<object[]> wrappedMethod;
         }
-        struct Value
+        struct Variable
         {
             public string name;
             public Type valueType;
@@ -70,34 +37,55 @@ namespace DevToolsForGodot
             public Action<object> wrappedSetMethod;
             public object wrappedGetMethod;
         }
-        const string consoleAction = "ToggleDevConsole";
-        static Key consoleHotkey = Key.Semicolon;
-        static double previousTimeScale;
         static string currentConsoleInput = "";
         //T0 is Exit Code, T1 is Command
         static Dictionary<string, CommandHistoryTheme> consoleHistory = new();
         static List<Command> availableCommands = new();
-        static List<Value> availableValues = new();
-        static bool active = false;
+        static List<Variable> availableVariables = new();
         static System.Numerics.Vector4 consoleFailure = new(255, 0, 0, 255);
         static System.Numerics.Vector4 consoleError = new(255, 0, 0, 255);
         static System.Numerics.Vector4 consoleSuccess = new(0, 255, 0, 255);
         static System.Numerics.Vector4 consoleDefault = new(255, 255, 255, 255);
-        public override void _EnterTree()
+        public override void ToolSetup()
         {
-            AddDevToolConsoleHotKey();
             FetchAllConsoleItems();
         }
-        public override void _ExitTree()
+
+        public override void ToolLoop()
         {
-            RemoveDevToolConsoleHotKey();
-        }
-        public override void _Process(double delta)
-        {
-            if (!OS.HasFeature("editor") || !active) return;
             //ImGui.ShowDemoWindow();
             ImGui.Begin("Godot Console");
-            ImGui.PushItemWidth(-1);
+            ImGui.PushItemWidth(600);
+            if (ImGui.BeginMenuBar())
+            {
+                if (ImGui.BeginMenu("Menu"))
+                {
+                    ImGui.EndMenu();
+                }
+                if (ImGui.BeginMenu("Examples"))
+                {
+                    ImGui.MenuItem("Main menu bar");
+                    ImGui.MenuItem("Console");
+                    ImGui.MenuItem("Log");
+                    ImGui.MenuItem("Simple layout");
+                    ImGui.MenuItem("Property editor");
+                    ImGui.MenuItem("Long text display");
+                    ImGui.MenuItem("Auto-resizing window");
+                    ImGui.MenuItem("Constrained-resizing window");
+                    ImGui.MenuItem("Simple overlay");
+                    ImGui.MenuItem("Manipulating window title");
+                    ImGui.MenuItem("Custom rendering");
+                    ImGui.EndMenu();
+                }
+                if (ImGui.BeginMenu("Help"))
+                {
+                    ImGui.MenuItem("Metrics");
+                    ImGui.MenuItem("Style Editor");
+                    ImGui.MenuItem("About ImGui");
+                    ImGui.EndMenu();
+                }
+                ImGui.EndMenuBar();
+            }
             if (ImGui.InputText("", ref currentConsoleInput, 256, ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.NoHorizontalScroll))
             {
                 List<string> splitConsoleInput = new List<string>(currentConsoleInput.Split(' '));
@@ -125,18 +113,13 @@ namespace DevToolsForGodot
             ImGui.End();
 
         }
-        public override void _Input(InputEvent @event)
-        {
-            if (@event.IsActionPressed(consoleAction))
-                active = !active;
-        }
+
         public void Execute(string input, object[] pack)
         {
             foreach (var command in availableCommands)
             {
                 if (input == command.name)
                 {
-
                     command.wrappedMethod.Invoke(pack);
                     consoleHistory.Add(" ", CommandHistoryTheme.Default);
                     return;
@@ -145,7 +128,7 @@ namespace DevToolsForGodot
             }
             if (pack.Length == 1)
             {
-                foreach (var value in availableValues)
+                foreach (var value in availableVariables)
                 {
                     if (value.name == input)
                     {
@@ -179,7 +162,7 @@ namespace DevToolsForGodot
                     return;
                 }
             }
-            foreach (var value in availableValues)
+            foreach (var value in availableVariables)
             {
                 if (value.name == pack[0].ToString())
                 {
@@ -189,21 +172,12 @@ namespace DevToolsForGodot
             }
             AddConsoleHistoryEntry("Could not find info for '" + pack[0] + "'", CommandHistoryTheme.Default);
         }
-        void AddDevToolConsoleHotKey()
-        {
-            InputMap.AddAction(consoleAction);
-            InputEventKey ev = new();
-            ev.Keycode = consoleHotkey;
-            InputMap.ActionAddEvent(consoleAction, ev);
-        }
-        void RemoveDevToolConsoleHotKey() => InputMap.EraseAction(consoleAction);
         void FetchAllConsoleItems()
         {
             List<Type> typeList = new();
             Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
             foreach (var assembly in assemblies)
                 typeList.AddRange(assembly.GetTypes());
-            GD.Print("Type count : " + typeList.Count);
             foreach (Type type in typeList)
             {
                 //Command Fetch Loop
@@ -225,34 +199,27 @@ namespace DevToolsForGodot
                 foreach (var property in type.GetProperties(BindingFlags.Static | BindingFlags.NonPublic))
                 {
                     if (!Attribute.IsDefined(property, typeof(ConsoleValue), true)) continue;
-                    Value value = new();
+                    Variable variable = new();
 
                     var setMethod = property.GetSetMethod();
                     var getMethod = property.GetGetMethod();
-                    value.name = property.Name;
-                    value.wrappedGetMethod = delegate () { return getMethod.Invoke(null, null); };
-                    value.wrappedSetMethod = delegate (object value) { setMethod.Invoke(null, new object[] { value }); };
+                    variable.name = property.Name;
+                    variable.wrappedGetMethod = delegate () { return getMethod.Invoke(null, null); };
+                    variable.wrappedSetMethod = delegate (object value) { setMethod.Invoke(null, new object[] { value }); };
                     object[] attrs = property.GetCustomAttributes(true);
                     foreach (object attr in attrs)
                     {
                         if (attr is ConsoleValue valueAttr)
                         {
-                            value.valueType = property.PropertyType;
-                            value.tooltip = valueAttr.ttip;
-                            value.valueTooltip = valueAttr.vttip;
+                            variable.valueType = property.PropertyType;
+                            variable.tooltip = valueAttr.ttip;
+                            variable.valueTooltip = valueAttr.vttip;
                         }
-
                     }
-                    availableValues.Add(value);
+                    availableVariables.Add(variable);
                 }
             }
         }
     }
 }
-
-
-public static class TestClass
-{
-    [ConsoleValue("Test int")]
-    static int TestInt { get; set; } = 100;
-}
+#endif
