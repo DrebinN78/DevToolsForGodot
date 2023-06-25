@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://clgoh7f2rabi6"]
 
-[ext_resource type="Script" path="res://addons/devtoolsforgodot/DevToolsHub.cs" id="1_pclas"]
+[ext_resource type="Script" path="res://addons/devtoolsforgodot/DevToolsHub/DevToolsHub.cs" id="1_02y0a"]
 
 [node name="devtoolroot" type="Node"]
-script = ExtResource("1_pclas")
+script = ExtResource("1_02y0a")

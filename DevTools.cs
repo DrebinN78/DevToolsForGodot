@@ -21,15 +21,18 @@ namespace DevToolsForGodot
         Control devtoolSettingsWindow;
         public override void _EnterTree()
         {
+            LoadPersistantData();
             AddDevToolSceneToAutoLoad();
             AddDevToolsSettingsWindow();
             FetchAllTools();
+
         }
 
         public override void _ExitTree()
         {
             RemoveDevToolSceneFromAutoLoad();
             RemoveDevToolsSettingsWindow();
+            WritePersistantData();
         }
 
         void AddDevToolSceneToAutoLoad() => AddAutoloadSingleton("DevTools", devtoolScenePath);
@@ -57,6 +60,17 @@ namespace DevToolsForGodot
                     toolList.Add(type);
             }
             return toolList;
+
+        }
+        static void WritePersistantData()
+        {
+            using var saveGame = FileAccess.Open("user://devtoolssettings.json", FileAccess.ModeFlags.Write);
+            var jsonString = Json.Stringify("dede");
+            saveGame.StoreLine(jsonString);
+            saveGame.Close();
+        }
+        static void LoadPersistantData()
+        {
 
         }
     }

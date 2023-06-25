@@ -180,7 +180,7 @@ namespace DevToolsForGodot
             foreach (Type type in typeList)
             {
                 //Command Fetch Loop
-                foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.NonPublic))
+                foreach (var method in type.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public))
                 {
                     if (!Attribute.IsDefined(method, typeof(ConsoleCommand), true)) continue;
                     Command cmd = new();
@@ -195,7 +195,7 @@ namespace DevToolsForGodot
                     availableCommands.Add(cmd);
                 }
                 //Value Fetch Loop
-                foreach (var property in type.GetProperties(BindingFlags.Static | BindingFlags.NonPublic))
+                foreach (var property in type.GetProperties(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public))
                 {
                     if (!Attribute.IsDefined(property, typeof(ConsoleValue), true)) continue;
                     Variable variable = new();
